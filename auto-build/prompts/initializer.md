@@ -210,7 +210,71 @@ git commit -m "auto-build: Initialize with $(cat feature_list.json | grep -c '"p
 
 ---
 
-## PHASE 6: UPDATE PROGRESS
+## PHASE 6: DOCUMENT APPLICATION ACCESS (CRITICAL FOR BROWSER TESTING)
+
+Future agents will use browser automation (Puppeteer) to verify features. They MUST know where the application is running. Document this clearly.
+
+### 6.1: Identify Application URLs
+
+Determine and document:
+- **Frontend URL**: Where the UI is served (e.g., `http://localhost:3000`, `http://localhost:5173`)
+- **Backend/API URL**: Where the API runs (e.g., `http://localhost:8000`, `http://localhost:3001/api`)
+- **Database admin** (if applicable): e.g., `http://localhost:5555` for Prisma Studio
+
+### 6.2: Update spec.md with Access Information
+
+**IMPORTANT**: Append an "Application Access" section to `spec.md` so future agents know where to find things:
+
+```markdown
+---
+
+## Application Access (Auto-Generated)
+
+### URLs
+- **Frontend**: http://localhost:[PORT]
+- **API**: http://localhost:[PORT]/api
+- **Docs/Swagger** (if available): http://localhost:[PORT]/docs
+
+### Key Navigation Paths
+- **Home**: /
+- **Login**: /login (or /auth/login)
+- **Register**: /register (or /auth/register)
+- **Dashboard**: /dashboard
+- **Settings**: /settings
+[Add other important routes based on the spec]
+
+### Test Credentials (if auth exists)
+- **Test User**: test@example.com / password123
+- **Admin User**: admin@example.com / admin123
+[Or document how to create test users]
+
+### Quick Access Links for Testing
+[List direct URLs to key features for faster verification]
+- Create new item: http://localhost:[PORT]/items/new
+- User profile: http://localhost:[PORT]/profile
+- Admin panel: http://localhost:[PORT]/admin
+```
+
+### 6.3: Update init.sh with URL Information
+
+Ensure `init.sh` outputs clear startup information:
+
+```bash
+echo "========================================"
+echo "Application URLs:"
+echo "  Frontend: http://localhost:3000"
+echo "  API:      http://localhost:8000"
+echo "  Docs:     http://localhost:8000/docs"
+echo "========================================"
+echo "Test Credentials:"
+echo "  Email:    test@example.com"
+echo "  Password: password123"
+echo "========================================"
+```
+
+---
+
+## PHASE 7: UPDATE PROGRESS
 
 Create `build-progress.txt`:
 
@@ -235,6 +299,11 @@ Test Summary:
 - Priority 3+ (Standard): [N]
 - Passing: 0/[N]
 
+Application Access:
+- Frontend: http://localhost:[PORT]
+- API: http://localhost:[PORT]
+- Test user: [credentials if applicable]
+
 Next Steps:
 - Run init.sh to set up environment
 - Begin implementing Priority 1 tests
@@ -255,7 +324,7 @@ git commit -m "auto-build: Add progress tracking"
 
 ---
 
-## PHASE 7: OPTIONAL - BEGIN IMPLEMENTATION
+## PHASE 8: OPTIONAL - BEGIN IMPLEMENTATION
 
 If you have context remaining, you may begin implementing the highest-priority features:
 

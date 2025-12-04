@@ -33,13 +33,20 @@ echo "Failing: $(grep -c '"passes": false' feature_list.json)"
 
 # 8. Check current branch
 git branch --show-current
+
+# 9. IMPORTANT: Find application URLs for browser testing
+grep -A 15 "Application Access" spec.md 2>/dev/null || echo "WARNING: No Application Access section found in spec.md"
 ```
 
 Understanding both `spec.md` AND `feature_list.json` is critical. The spec tells you WHAT to build, the feature list tells you HOW to verify it's done.
 
+**CRITICAL**: Look for the "Application Access" section in spec.md - this tells you what URLs/ports to use for browser testing. If it doesn't exist, you'll need to discover them in Step 2.
+
 ---
 
-## STEP 2: START DEVELOPMENT ENVIRONMENT
+## STEP 2: START DEVELOPMENT ENVIRONMENT & DISCOVER URLS
+
+### 2.1: Run Setup Script
 
 If `init.sh` exists, run it:
 
@@ -48,9 +55,57 @@ chmod +x init.sh
 ./init.sh
 ```
 
-Otherwise, start servers manually based on the project's tech stack and document the process.
+Otherwise, start servers manually based on the project's tech stack.
 
-Verify the application is accessible before proceeding.
+### 2.2: CRITICAL - Find Application URLs (Before Any Browser Testing!)
+
+**You MUST know where the app is running before using Puppeteer.** If you try to navigate to the wrong URL/port, you'll see nothing!
+
+**Step 1: Check spec.md for documented URLs**
+```bash
+# Look for Application Access section (added by initializer)
+grep -A 20 "Application Access" spec.md
+```
+
+**Step 2: Check build-progress.txt**
+```bash
+grep -i "localhost\|port\|url\|http://" build-progress.txt
+```
+
+**Step 3: If not documented, discover the ports:**
+```bash
+# Find what's listening on common dev ports
+lsof -i :3000 -i :3001 -i :5173 -i :5174 -i :8000 -i :8080 -i :4000 2>/dev/null | grep LISTEN
+
+# Or check all TCP listeners
+lsof -iTCP -sTCP:LISTEN | grep -E "node|python|next|vite|npm"
+
+# For npm/node projects, check package.json scripts
+grep -E "PORT|port|localhost" package.json
+```
+
+**Step 4: Check running processes for clues:**
+```bash
+# See what dev servers are running
+ps aux | grep -E "node|vite|next|npm|python" | grep -v grep
+```
+
+**Step 5: Test the URLs before proceeding:**
+```bash
+# Quick connectivity test
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "Not on 3000"
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 2>/dev/null || echo "Not on 5173"
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8000 2>/dev/null || echo "Not on 8000"
+```
+
+### 2.3: Document URLs for This Session
+
+Once you find the correct URLs, note them for browser automation:
+- **Frontend URL**: (e.g., http://localhost:5173)
+- **API URL**: (e.g., http://localhost:8000)
+- **Key paths**: /login, /dashboard, etc.
+
+**If URLs weren't documented in spec.md, ADD them now** so future sessions don't have to discover this again.
 
 ---
 
@@ -121,6 +176,42 @@ Implement the feature to make the test pass:
 - `puppeteer_click` - Click elements
 - `puppeteer_fill` - Fill form inputs
 - `puppeteer_evaluate` - Execute JavaScript (debugging only)
+
+### BEFORE YOU START - Common Puppeteer Issues
+
+**Problem: "I can't see anything" / Blank page / Connection refused**
+
+This usually means you're navigating to the wrong URL/port. FIX:
+1. Verify the dev server is actually running (check terminal output)
+2. Confirm the correct port from Step 2.2
+3. Make sure you're using the full URL: `http://localhost:PORT` (not just `localhost:PORT`)
+4. Try a simple curl test first: `curl http://localhost:PORT`
+
+**Problem: "Page shows error" / "This site can't be reached"**
+
+The server might have crashed or not started. FIX:
+1. Check terminal for error messages
+2. Restart the dev server: `npm run dev` or similar
+3. Wait a few seconds for it to fully start
+4. Check if there's a build error preventing startup
+
+**Problem: Wrong page loads / Unexpected content**
+
+You might be hitting a different app on that port. FIX:
+1. Check what process is using that port: `lsof -i :PORT`
+2. Verify it's YOUR application, not something else
+3. Check spec.md for the documented URLs
+
+### Quick URL Reference Lookup
+
+Before every `puppeteer_navigate`, know where you're going:
+- Check the "Application Access" section in `spec.md`
+- Check `build-progress.txt` for URLs
+- Common patterns:
+  - Vite/React: Usually `:5173` or `:3000`
+  - Next.js: Usually `:3000`
+  - Python/FastAPI: Usually `:8000`
+  - Express: Usually `:3000` or `:3001`
 
 ### FIX BUGS IMMEDIATELY (IMPORTANT!)
 
@@ -372,6 +463,15 @@ If you see a bug, fix it immediately. Never document a bug for "future sessions"
 - Git commits are your voice
 - build-progress.txt is your handoff note
 - feature_list.json is the source of truth
+
+### Browser Testing Checklist
+Before every Puppeteer session, verify:
+1. ✅ Dev server is running (check terminal)
+2. ✅ You know the correct URL/port (check spec.md or discover it)
+3. ✅ The URL is accessible (quick curl test)
+4. ✅ You have the correct paths for the page you need (/login, /dashboard, etc.)
+
+If Puppeteer shows blank/error pages, STOP and fix the URL issue first!
 
 ---
 
